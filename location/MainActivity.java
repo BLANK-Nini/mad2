@@ -1,6 +1,3 @@
-package com.example.location;
-import android.Manifest;
-import android.content.pm.PackageManager;
 import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
@@ -9,10 +6,7 @@ import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
 
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
@@ -22,87 +16,72 @@ import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity {
 
-    TextView latitude, longitude, addressText;
+    // Renamed to fl
+    FusedLocationProviderClient fl;
+
+    TextView latitude, longitude, address, city, country;
     Button getLocation;
-    FusedLocationProviderClient fusedLocationProviderClient;
-    private static final int REQUEST_CODE = 100;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        latitude = findViewById(R.id.latitude);
+        latitude = findViewById(R.id.lattitude);
         longitude = findViewById(R.id.longitude);
-        addressText = findViewById(R.id.addressText);
-        getLocation = findViewById(R.id.getLocation);
+        address = findViewById(R.id.address);
+        city = findViewById(R.id.city);
+        country = findViewById(R.id.country);
+        getLocation = findViewById(R.id.getlocation);
 
-        fusedLocationProviderClient =
-                LocationServices.getFusedLocationProviderClient(this);
+        // Initialize fl
+        fl = LocationServices.getFusedLocationProviderClient(this);
 
-        getLocation.setOnClickListener(v -> getLocationData());
+        // Lambda click listener
+        getLocation.setOnClickListener(v -> getLocation());
     }
 
-    private void getLocationData() {
+    private void getLocation() {
 
-        if (ContextCompat.checkSelfPermission(this,
-                Manifest.permission.ACCESS_FINE_LOCATION)
-                == PackageManager.PERMISSION_GRANTED) {
+        fl.getLastLocation().addOnSuccessListener(location -> {
 
-            fusedLocationProviderClient.getLastLocation()
-                    .addOnSuccessListener(location -> {
+            if (location == null) {
+                Toast.makeText(this,
+                        "Location not available",
+                        Toast.LENGTH_SHORT).show();
+                return;
+            }
 
-                        if (location != null) {
+            double lat = location.getLatitude();
+            double lon = location.getLongitude();
 
-                            double lat = location.getLatitude();
-                            double lon = location.getLongitude();
+            latitude.setText("Latitude: " + lat);
+            longitude.setText("Longitude: " + lon);
 
-                            latitude.setText("Latitude: " + lat);
-                            longitude.setText("Longitude: " + lon);
+            try {
+                Geocoder geocoder =
+                        new Geocoder(this, Locale.getDefault());
 
-                            try {
-                                Geocoder geocoder =
-                                        new Geocoder(this, Locale.getDefault());
+                List<Address> list =
+                        geocoder.getFromLocation(lat, lon, 1);
 
-                                List<Address> addresses =
-                                        geocoder.getFromLocation(lat, lon, 1);
+                if (list != null && !list.isEmpty()) {
 
-                                if (addresses != null && !addresses.isEmpty()) {
-                                    addressText.setText(
-                                            "Address: " +
-                                                    addresses.get(0).getAddressLine(0));
-                                }
+                    Address a = list.get(0);
 
-                            } catch (Exception e) {
-                                Toast.makeText(this,
-                                        "Unable to get address",
-                                        Toast.LENGTH_SHORT).show();
-                            }
+                    address.setText("Address: " + a.getAddressLine(0));
+                    city.setText("City: " + a.getLocality());
+                    country.setText("Country: " + a.getCountryName());
+                }
 
-                        } else {
-                            Toast.makeText(this,
-                                    "Location not available",
-                                    Toast.LENGTH_SHORT).show();
-                        }
-                    });
+            } catch (Exception e) {
+                Toast.makeText(this,
+                        "Failed to get address",
+                        Toast.LENGTH_SHORT).show();
+            }
 
-        } else {
-            ActivityCompat.requestPermissions(this,
-                    new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
-                    REQUEST_CODE);
-        }
+        });
     }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode,
-                                           @NonNull String[] permissions,
-                                           @NonNull int[] grantResults) {
-
-        if (requestCode == REQUEST_CODE &&
-                grantResults.length > 0 &&
-                grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-
-            getLocationData();
-        }
+}
     }
 }
